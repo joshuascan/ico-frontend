@@ -1,8 +1,62 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import { BigNumber, Contract, providers, utils } from "ethers";
+import Head from "next/head";
+import React, { useEffect, useRef, useState } from "react";
+import Web3Modal from "web3modal";
+import {
+  NFT_CONTRACT_ABI,
+  NFT_CONTRACT_ADDRESS,
+  TOKEN_CONTRACT_ABI,
+  TOKEN_CONTRACT_ADDRESS,
+} from "../constants";
+import styles from "../styles/Home.module.css";
 
 export default function Home() {
+  const zero = BigNumber.from(0);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [tokensToBeClaimed, setTokensToBeClaimed] = useState(zero);
+  const [balanceOfCryptoDevTokens, setBalanceOfCryptoDevTokens] =
+    useState(zero);
+  const [tokenAmount, setTokenAmount] = useState(zero);
+  const [tokensMinted, setTokensMinted] = useState(zero);
+  const web3ModalRef = useRef();
+
+  const getTokensToBeClaimed = async () => {
+    try {
+      const provider = await getProviderOrSigner();
+      const nftContract = new Contract(
+        NFT_CONTRACT_ADDRESS,
+        NFT_CONTRACT_ABI,
+        provider
+      );
+      const tokenContract = new Contract(
+        TOKEN_CONTRACT_ADDRESS,
+        TOKEN_CONTRACT_ABI,
+        provider
+      );
+      const signer = await getProviderOrSigner(true);
+      const address = await signer.getAddress();
+      const balance = await nftContract.balanceOf(address);
+
+      if (balance === zero) {
+        setTokensToBeClaimed(zero);
+      } else {
+        let amount = 0;
+        for (let i = 0; i < balance; i++) {
+          const tokenId = await nftContract.tokenOfOwnerByIndex(address, i);
+          const claimed = await tokenContract.tokenIdsClaimed(tokenId);
+          if (!claimed) {
+            amount++;
+          }
+        }
+        setTokensToBeClaimed(BigNumber.from(amount));
+      }
+    } catch (err) {
+      console.error(err);
+      setTokensToBeClaimed(zero);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <Head>
@@ -11,59 +65,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
+      <footer className={styles.footer}></footer>
     </div>
-  )
+  );
 }
